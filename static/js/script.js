@@ -82,7 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- WINDOW FUNCTIONS ---
 
-// *** MODIFIED LOGIN FUNCTION ***
 window.handleLogin = async (e) => {
     e.preventDefault();
     const email = e.target.username.value;
@@ -93,12 +92,11 @@ window.handleLogin = async (e) => {
         await signInWithEmailAndPassword(auth, email, password);
         window.location.href = 'dashboard.html';
     } catch (error) {
-        console.error("Login Error:", error.code); // Log error for debugging
+        console.error("Login Error:", error.code);
 
         let msg = 'Login failed.';
 
         // Handle specific Firebase Error Codes
-        // 'auth/invalid-credential' is the common error for wrong password/email in newer Firebase versions
         if (error.code === 'auth/invalid-credential' ||
             error.code === 'auth/user-not-found' ||
             error.code === 'auth/wrong-password') {
@@ -110,7 +108,6 @@ window.handleLogin = async (e) => {
         else if (error.code === 'auth/too-many-requests') {
             msg = 'Too many attempts. Try again later.';
         } else {
-            // Fallback for other errors
             msg = error.code;
         }
 
@@ -203,6 +200,10 @@ window.clearImage = (type) => {
     if (type === 'enc') {
         const res = document.getElementById('enc-result');
         if (res) res.style.display = 'none';
+
+        // Remove warning if it exists when clearing
+        const warning = document.getElementById('compression-warning');
+        if (warning) warning.remove();
     }
 };
 
@@ -340,10 +341,33 @@ window.processEncode = async () => {
 
             const resultUrl = canvas.toDataURL('image/png');
             const dlBtn = document.getElementById('download-btn');
-            document.getElementById('enc-result').style.display = 'block';
+            const resContainer = document.getElementById('enc-result');
+
+            resContainer.style.display = 'block';
             dlBtn.href = resultUrl;
             dlBtn.download = 'secure_encoded.png';
             dlBtn.innerHTML = '<i class="fas fa-check"></i> DOWNLOAD RESULT';
+
+            // *** WARNING ADDED HERE ***
+            if (!document.getElementById('compression-warning')) {
+                const warning = document.createElement('div');
+                warning.id = 'compression-warning';
+                warning.style.marginTop = '15px';
+                warning.style.padding = '10px';
+                warning.style.background = 'rgba(239, 68, 68, 0.1)';
+                warning.style.border = '1px solid var(--danger)';
+                warning.style.borderRadius = '6px';
+                warning.style.fontSize = '0.85rem';
+                warning.style.color = '#ff8888';
+                warning.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i> <strong>CRITICAL TRANSFER WARNING</strong><br>
+                    Do not send this image via WhatsApp, Messenger, or Social Media as a "Photo".<br>
+                    <br>
+                    Compression will destroy the hidden data.<br>
+                    <strong>ALWAYS send as a "FILE" or "DOCUMENT".</strong>
+                `;
+                resContainer.appendChild(warning);
+            }
 
         } catch (err) {
             alert('Encoding Error: ' + err.message);
