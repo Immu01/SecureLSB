@@ -1,3 +1,13 @@
+import { auth } from "./firebase-config.js";
+import {
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    updateProfile,
+    signOut,
+    sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
 // --- UTILITIES ---
 
 function showFlash(message, type = 'danger') {
@@ -30,36 +40,40 @@ const CryptoUtils = {
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. Check Auth State for Dashboard/Profile
+    // 1. REAL AUTH STATE OBSERVER (Replaces LocalStorage check)
     if (window.location.pathname.includes('dashboard.html') || window.location.pathname.includes('profile.html')) {
 
-        const storedUser = localStorage.getItem('secure_user');
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // No user logged in? Kick them out.
+                window.location.href = 'index.html';
+            } else {
+                // User is logged in. Update UI.
+                const userDisplay = document.querySelector('.user-badge');
+                if (userDisplay) {
+                    // Use the real Display Name from Firebase
+                    const displayName = user.displayName || user.email.split('@')[0];
+                    userDisplay.innerHTML = `
+                        <i class="fas fa-user-circle"></i> ${displayName}
+                        <div class="dropdown-menu">
+                            <a href="profile.html" class="dropdown-item"><i class="fas fa-id-card"></i> Profile</a>
+                            <a href="#" onclick="handleLogout()" class="dropdown-item" style="color: var(--danger)">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>`;
+                }
 
-        if (!storedUser) {
-            window.location.href = 'index.html';
-        } else {
-            // Update User Badge in Navbar (if exists)
-            const userDisplay = document.querySelector('.user-badge');
-            if (userDisplay) {
-                userDisplay.innerHTML = `
-                    <i class="fas fa-user-circle"></i> ${storedUser}
-                    <div class="dropdown-menu">
-                        <a href="profile.html" class="dropdown-item"><i class="fas fa-id-card"></i> Profile</a>
-                        <a href="#" onclick="handleLogout()" class="dropdown-item" style="color: var(--danger)">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
-                    </div>`;
+                // Update Profile Page Info
+                const profileName = document.getElementById('profile-username');
+                const profileEmail = document.querySelector('.stat-label'); // Reusing this class for email display if needed
+                if (profileName) {
+                    profileName.innerText = user.displayName || "Agent";
+                }
             }
-
-            // Update Profile Page Details (if on profile.html)
-            const profileName = document.getElementById('profile-username');
-            if (profileName) {
-                profileName.innerText = storedUser;
-            }
-        }
+        });
     }
 
-    // 2. Initialize Visuals (Drag & Drop) - Only on dashboard
+    // 2. Initialize Visuals (Drag & Drop)
     if (document.getElementById('view-overview')) {
         setupDragDrop('drop-enc', 'file-enc', 'preview-enc-box', 'preview-enc-img');
         setupDragDrop('drop-dec', 'file-dec', 'preview-dec-box', 'preview-dec-img');
@@ -74,56 +88,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.handleLogin = async (e) => {
     e.preventDefault();
-    const inputVal = e.target.username.value;
+    const email = e.target.username.value; // Variable name is 'username' in HTML, but we need Email
+    const password = e.target.password.value;
 
-    // CHANGED: Accepts Username OR Email (any text)
-    if (inputVal && inputVal.trim() !== "") {
-        localStorage.setItem('secure_user', inputVal);
-        showFlash('Authenticating...', 'success');
-        setTimeout(() => window.location.href = 'dashboard.html', 500);
-    } else {
-        showFlash('Credentials Required', 'danger');
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        // Success! onAuthStateChanged will handle the redirect if we were on a protected page, 
+        // but since we are on index, we force it:
+        window.location.href = 'dashboard.html';
+    } catch (error) {
+        let msg = error.code;
+        if (msg === 'auth/invalid-credential') msg = 'Invalid Email or Password.';
+        if (msg === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+        showFlash(msg, 'danger');
     }
 };
 
 window.handleRegister = async (e) => {
     e.preventDefault();
     const username = e.target.username.value;
+    const email = e.target.email.value;
+    const password = e.target.password.value;
 
-    if (username) {
-        localStorage.setItem('secure_user', username);
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Save the Username (Display Name) to Firebase Profile
+        await updateProfile(userCredential.user, {
+            displayName: username
+        });
+
         showFlash('Identity created successfully. Redirecting...', 'success');
-        setTimeout(() => window.location.href = 'dashboard.html', 1000);
-    } else {
-        showFlash('Username required', 'danger');
+        setTimeout(() => window.location.href = 'dashboard.html', 1500);
+    } catch (error) {
+        let msg = error.code;
+        if (msg === 'auth/email-already-in-use') msg = 'Email is already registered.';
+        if (msg === 'auth/weak-password') msg = 'Password should be at least 6 characters.';
+        showFlash(msg, 'danger');
     }
 };
 
 window.handleForgot = async (e) => {
     e.preventDefault();
-    showFlash('Recovery protocols simulated. Check "console" logs.', 'success');
+    const email = e.target.email.value;
+    try {
+        await sendPasswordResetEmail(auth, email);
+        showFlash('Reset link sent to your email.', 'success');
+    } catch (error) {
+        showFlash(error.code, 'danger');
+    }
 };
 
-window.handleLogout = () => {
-    localStorage.removeItem('secure_user');
-    localStorage.removeItem('secure_last_view');
-    window.location.href = 'index.html';
+window.handleLogout = async () => {
+    try {
+        await signOut(auth);
+        window.location.href = 'index.html';
+    } catch (error) {
+        console.error("Logout Error", error);
+    }
 };
 
 // NEW: Handle Profile Update (Password)
 window.handleProfileUpdate = (e) => {
     e.preventDefault();
-    const p1 = e.target.p1.value;
-    const p2 = e.target.p2.value;
-
-    if (p1 !== p2) {
-        showFlash('Passphrases do not match!', 'danger');
-        return;
-    }
-
-    // Since this is mock local storage, we just simulate success
-    showFlash('Security Credentials Updated Successfully.', 'success');
-    e.target.reset();
+    // Real password update requires re-authentication for security.
+    // For this step, we will just show a message that this feature is locked for V1.0 security.
+    showFlash('Security Protocol: Password changes require Re-Authentication (Feature Locked in V1.0)', 'text-muted');
 };
 
 window.switchView = (viewName) => {
@@ -237,7 +266,6 @@ function handleFile(file, area, box, img, areaId) {
 }
 
 // --- STEGANOGRAPHY LOGIC ---
-// (Kept exactly same as previous version)
 function textToBin(text) {
     let output = "";
     for (let i = 0; i < text.length; i++) {
