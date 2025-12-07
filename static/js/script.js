@@ -63,8 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDragDrop('drop-enc', 'file-enc', 'preview-enc-box', 'preview-enc-img');
         setupDragDrop('drop-dec', 'file-dec', 'preview-dec-box', 'preview-dec-img');
 
-        // Ensure Overview is active by default
-        window.switchView('overview');
+        // CHECK PREVIOUS VIEW STATE FROM LOCAL STORAGE
+        const lastView = localStorage.getItem('secure_last_view') || 'overview';
+        window.switchView(lastView);
     }
 });
 
@@ -107,6 +108,7 @@ window.handleForgot = async (e) => {
 window.handleLogout = () => {
     // Clear LocalStorage
     localStorage.removeItem('secure_user');
+    localStorage.removeItem('secure_last_view'); // Clear view state on logout
     window.location.href = 'index.html';
 };
 
@@ -125,6 +127,37 @@ window.switchView = (viewName) => {
     if (viewName === 'overview' && navItems[0]) navItems[0].classList.add('active');
     if (viewName === 'encode' && navItems[1]) navItems[1].classList.add('active');
     if (viewName === 'decode' && navItems[2]) navItems[2].classList.add('active');
+
+    // SAVE STATE to LocalStorage
+    localStorage.setItem('secure_last_view', viewName);
+};
+
+window.clearImage = (type) => {
+    // type is 'enc' or 'dec'
+    const box = document.getElementById(`preview-${type}-box`);
+    const area = document.getElementById(`drop-${type}`);
+    const img = document.getElementById(`preview-${type}-img`);
+    const input = document.getElementById(`file-${type}`);
+
+    // Reset inputs
+    input.value = '';
+    img.src = '';
+
+    // Toggle View
+    box.style.display = 'none';
+    area.style.display = 'flex';
+
+    // Hide analysis panel if decoding
+    if (type === 'dec') {
+        const panel = document.querySelector('.analysis-panel');
+        if (panel) panel.style.display = 'none';
+    }
+
+    // Hide result download if encoding
+    if (type === 'enc') {
+        const res = document.getElementById('enc-result');
+        if (res) res.style.display = 'none';
+    }
 };
 
 // --- DRAG & DROP LOGIC ---
@@ -136,35 +169,71 @@ function setupDragDrop(areaId, inputId, previewId, imgId) {
 
     if (!area) return;
 
+    // 1. Click to Upload
     area.addEventListener('click', () => input.click());
 
+    // 2. Handle File Selection (via Click)
     input.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                img.src = evt.target.result;
-                area.style.display = 'none';
-                box.style.display = 'flex';
-                img.onload = () => {
-                    if (areaId === 'drop-dec') {
-                        const panel = document.querySelector('.analysis-panel');
-                        if (panel) {
-                            panel.style.display = 'block';
-                            // Create fake analysis bars
-                            const bars = panel.querySelector('.bars');
-                            if (bars) {
-                                let html = '';
-                                for (let i = 0; i < 20; i++) html += `<div class="bar" style="height: ${Math.random() * 100}%"></div>`;
-                                bars.innerHTML = html;
-                            }
-                        }
-                    }
-                };
-            };
-            reader.readAsDataURL(file);
+        handleFile(e.target.files[0], area, box, img, areaId);
+    });
+
+    // 3. Drag & Drop Events
+    // Prevent default browser behavior (opening file)
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        area.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // Visual Cue (Highlight)
+    ['dragenter', 'dragover'].forEach(eventName => {
+        area.addEventListener(eventName, () => area.classList.add('highlight'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        area.addEventListener(eventName, () => area.classList.remove('highlight'), false);
+    });
+
+    // Handle Drop
+    area.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files.length > 0) {
+            input.files = files; // Update the hidden input
+            handleFile(files[0], area, box, img, areaId);
         }
     });
+}
+
+function handleFile(file, area, box, img, areaId) {
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            img.src = evt.target.result;
+            area.style.display = 'none';
+            box.style.display = 'flex';
+            img.onload = () => {
+                if (areaId === 'drop-dec') {
+                    const panel = document.querySelector('.analysis-panel');
+                    if (panel) {
+                        panel.style.display = 'block';
+                        // Create fake analysis bars
+                        const bars = panel.querySelector('.bars');
+                        if (bars) {
+                            let html = '';
+                            for (let i = 0; i < 20; i++) html += `<div class="bar" style="height: ${Math.random() * 100}%"></div>`;
+                            bars.innerHTML = html;
+                        }
+                    }
+                }
+            };
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
 // --- STEGANOGRAPHY LOGIC ---

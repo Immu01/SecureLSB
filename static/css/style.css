@@ -268,7 +268,8 @@ body {
     align-items: center;
 }
 
-.drop-area:hover {
+.drop-area:hover,
+.drop-area.highlight {
     color: var(--primary);
     background: rgba(59, 130, 246, 0.05);
 }
@@ -280,6 +281,8 @@ body {
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    position: relative;
+    /* Needed for absolute positioning of the close button */
 }
 
 .preview-container img {
@@ -359,4 +362,29 @@ body {
         grid-template-columns: 1fr;
         height: auto;
     }
+}
+
+/* New style for the remove button */
+.remove-img-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.3s;
+    z-index: 10;
+}
+
+.remove-img-btn:hover {
+    background: var(--danger);
+    color: white;
+    transform: rotate(90deg);
 }
