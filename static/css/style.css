@@ -282,7 +282,6 @@ body {
     align-items: center;
     flex-direction: column;
     position: relative;
-    /* Needed for absolute positioning of the close button */
 }
 
 .preview-container img {
@@ -364,7 +363,6 @@ body {
     }
 }
 
-/* New style for the remove button */
 .remove-img-btn {
     position: absolute;
     top: 15px;
@@ -387,4 +385,19 @@ body {
     background: var(--danger);
     color: white;
     transform: rotate(90deg);
+}
+
+/* NEW: Profile Avatar Style */
+.avatar-circle {
+    width: 80px;
+    height: 80px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px auto;
+    font-size: 2.5rem;
+    color: var(--primary);
 }

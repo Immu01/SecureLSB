@@ -1,6 +1,3 @@
-// Note: We are no longer importing from firebase-config.js to remove the dependency
-// The functions below now use LocalStorage to mock a login session.
-
 // --- UTILITIES ---
 
 function showFlash(message, type = 'danger') {
@@ -33,17 +30,15 @@ const CryptoUtils = {
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. Check Auth State for Dashboard/Profile (MOCKED with LocalStorage)
+    // 1. Check Auth State for Dashboard/Profile
     if (window.location.pathname.includes('dashboard.html') || window.location.pathname.includes('profile.html')) {
 
-        // Check if a mock user is saved in LocalStorage
         const storedUser = localStorage.getItem('secure_user');
 
         if (!storedUser) {
-            // Not logged in, redirect to index
             window.location.href = 'index.html';
         } else {
-            // Logged in, Update UI with Username
+            // Update User Badge in Navbar (if exists)
             const userDisplay = document.querySelector('.user-badge');
             if (userDisplay) {
                 userDisplay.innerHTML = `
@@ -55,33 +50,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         </a>
                     </div>`;
             }
+
+            // Update Profile Page Details (if on profile.html)
+            const profileName = document.getElementById('profile-username');
+            if (profileName) {
+                profileName.innerText = storedUser;
+            }
         }
     }
 
-    // 2. Initialize Visuals (Drag & Drop)
+    // 2. Initialize Visuals (Drag & Drop) - Only on dashboard
     if (document.getElementById('view-overview')) {
         setupDragDrop('drop-enc', 'file-enc', 'preview-enc-box', 'preview-enc-img');
         setupDragDrop('drop-dec', 'file-dec', 'preview-dec-box', 'preview-dec-img');
 
-        // CHECK PREVIOUS VIEW STATE FROM LOCAL STORAGE
+        // CHECK PREVIOUS VIEW STATE
         const lastView = localStorage.getItem('secure_last_view') || 'overview';
         window.switchView(lastView);
     }
 });
 
-// --- WINDOW FUNCTIONS (So HTML can see them) ---
+// --- WINDOW FUNCTIONS ---
 
 window.handleLogin = async (e) => {
     e.preventDefault();
-    const email = e.target.username.value;
+    const inputVal = e.target.username.value;
 
-    // MOCK LOGIN: Accept any input
-    if (email) {
-        localStorage.setItem('secure_user', email);
+    // CHANGED: Accepts Username OR Email (any text)
+    if (inputVal && inputVal.trim() !== "") {
+        localStorage.setItem('secure_user', inputVal);
         showFlash('Authenticating...', 'success');
         setTimeout(() => window.location.href = 'dashboard.html', 500);
     } else {
-        showFlash('Please enter a username or email', 'danger');
+        showFlash('Credentials Required', 'danger');
     }
 };
 
@@ -89,7 +90,6 @@ window.handleRegister = async (e) => {
     e.preventDefault();
     const username = e.target.username.value;
 
-    // MOCK REGISTER: Accept any input
     if (username) {
         localStorage.setItem('secure_user', username);
         showFlash('Identity created successfully. Redirecting...', 'success');
@@ -101,15 +101,29 @@ window.handleRegister = async (e) => {
 
 window.handleForgot = async (e) => {
     e.preventDefault();
-    // MOCK RECOVERY
     showFlash('Recovery protocols simulated. Check "console" logs.', 'success');
 };
 
 window.handleLogout = () => {
-    // Clear LocalStorage
     localStorage.removeItem('secure_user');
-    localStorage.removeItem('secure_last_view'); // Clear view state on logout
+    localStorage.removeItem('secure_last_view');
     window.location.href = 'index.html';
+};
+
+// NEW: Handle Profile Update (Password)
+window.handleProfileUpdate = (e) => {
+    e.preventDefault();
+    const p1 = e.target.p1.value;
+    const p2 = e.target.p2.value;
+
+    if (p1 !== p2) {
+        showFlash('Passphrases do not match!', 'danger');
+        return;
+    }
+
+    // Since this is mock local storage, we just simulate success
+    showFlash('Security Credentials Updated Successfully.', 'success');
+    e.target.reset();
 };
 
 window.switchView = (viewName) => {
@@ -122,38 +136,31 @@ window.switchView = (viewName) => {
 
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
-    // Manual mapping for nav highlights
     const navItems = document.querySelectorAll('.nav-item');
     if (viewName === 'overview' && navItems[0]) navItems[0].classList.add('active');
     if (viewName === 'encode' && navItems[1]) navItems[1].classList.add('active');
     if (viewName === 'decode' && navItems[2]) navItems[2].classList.add('active');
 
-    // SAVE STATE to LocalStorage
     localStorage.setItem('secure_last_view', viewName);
 };
 
 window.clearImage = (type) => {
-    // type is 'enc' or 'dec'
     const box = document.getElementById(`preview-${type}-box`);
     const area = document.getElementById(`drop-${type}`);
     const img = document.getElementById(`preview-${type}-img`);
     const input = document.getElementById(`file-${type}`);
 
-    // Reset inputs
     input.value = '';
     img.src = '';
 
-    // Toggle View
     box.style.display = 'none';
     area.style.display = 'flex';
 
-    // Hide analysis panel if decoding
     if (type === 'dec') {
         const panel = document.querySelector('.analysis-panel');
         if (panel) panel.style.display = 'none';
     }
 
-    // Hide result download if encoding
     if (type === 'enc') {
         const res = document.getElementById('enc-result');
         if (res) res.style.display = 'none';
@@ -169,16 +176,12 @@ function setupDragDrop(areaId, inputId, previewId, imgId) {
 
     if (!area) return;
 
-    // 1. Click to Upload
     area.addEventListener('click', () => input.click());
 
-    // 2. Handle File Selection (via Click)
     input.addEventListener('change', (e) => {
         handleFile(e.target.files[0], area, box, img, areaId);
     });
 
-    // 3. Drag & Drop Events
-    // Prevent default browser behavior (opening file)
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         area.addEventListener(eventName, preventDefaults, false);
     });
@@ -188,7 +191,6 @@ function setupDragDrop(areaId, inputId, previewId, imgId) {
         e.stopPropagation();
     }
 
-    // Visual Cue (Highlight)
     ['dragenter', 'dragover'].forEach(eventName => {
         area.addEventListener(eventName, () => area.classList.add('highlight'), false);
     });
@@ -197,13 +199,11 @@ function setupDragDrop(areaId, inputId, previewId, imgId) {
         area.addEventListener(eventName, () => area.classList.remove('highlight'), false);
     });
 
-    // Handle Drop
     area.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
         const files = dt.files;
-
         if (files.length > 0) {
-            input.files = files; // Update the hidden input
+            input.files = files;
             handleFile(files[0], area, box, img, areaId);
         }
     });
@@ -237,7 +237,7 @@ function handleFile(file, area, box, img, areaId) {
 }
 
 // --- STEGANOGRAPHY LOGIC ---
-
+// (Kept exactly same as previous version)
 function textToBin(text) {
     let output = "";
     for (let i = 0; i < text.length; i++) {
