@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SecureLSB | Command</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="nav-brand">
+                <i class="fas fa-shield-alt" style="color: var(--primary);"></i>
+                <span>SECURE<span style="color: var(--primary)">LSB</span></span>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-item active" onclick="switchView('overview')"><i class="fas fa-th-large"></i> Overview
+                </div>
+                <div class="nav-item" onclick="switchView('encode')"><i class="fas fa-file-export"></i> Encode</div>
+                <div class="nav-item" onclick="switchView('decode')"><i class="fas fa-file-import"></i> Decode</div>
+
+                <div class="user-badge">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div id="view-overview" class="view-section">
+            <div class="glass-panel" style="padding: 30px;">
+                <h2 style="margin-bottom: 25px; font-family: var(--font-mono);">SYSTEM_STATUS</h2>
+                <div class="stats-row">
+                    <div class="glass-panel stat-box">
+                        <i class="fas fa-server stat-icon"></i>
+                        <span class="stat-label">Server Integrity</span>
+                        <span class="stat-value" style="color: var(--success)">OFFLINE (LOCAL)</span>
+                    </div>
+                    <div class="glass-panel stat-box">
+                        <i class="fas fa-lock stat-icon"></i>
+                        <span class="stat-label">Encryption Algo</span>
+                        <span class="stat-value">AES-256 (JS)</span>
+                    </div>
+                    <div class="glass-panel stat-box">
+                        <i class="fas fa-layer-group stat-icon"></i>
+                        <span class="stat-label">Stego Protocol</span>
+                        <span class="stat-value">LSB-CANVAS</span>
+                    </div>
+                    <div class="glass-panel stat-box">
+                        <i class="fas fa-user-shield stat-icon"></i>
+                        <span class="stat-label">Clearance Level</span>
+                        <span class="stat-value">AGENT</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-encode" class="view-section" style="display: none;">
+            <div class="glass-panel workspace">
+                <div class="sidebar-controls">
+                    <h3 style="font-family: var(--font-mono); color: var(--primary);">// ENCODER</h3>
+                    <div class="form-group">
+                        <label class="stat-label">1. Secret Payload</label>
+                        <textarea id="enc-msg" class="form-input" rows="5"
+                            placeholder="Enter sensitive data..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="stat-label">2. Encryption Key</label>
+                        <input type="password" id="enc-pass" class="form-input" placeholder="Passphrase">
+                    </div>
+                    <button class="btn-primary" onclick="processEncode()">
+                        <i class="fas fa-cogs"></i> INITIATE SEQUENCE
+                    </button>
+                    <div id="enc-result" style="display:none; margin-top: 10px;">
+                        <a id="download-btn" class="btn-primary"
+                            style="background: var(--success); display: block; text-align: center; text-decoration: none;">DOWNLOAD</a>
+                    </div>
+                </div>
+                <div class="main-viewport">
+                    <div id="drop-enc" class="drop-area">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                        <p>DROP SOURCE IMAGE</p>
+                        <span class="stat-label">PNG / JPG Supported</span>
+                        <input type="file" id="file-enc" hidden accept="image/*">
+                    </div>
+                    <div id="preview-enc-box" class="preview-container">
+                        <img id="preview-enc-img" src="">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-decode" class="view-section" style="display: none;">
+            <div class="glass-panel workspace">
+                <div class="sidebar-controls">
+                    <h3 style="font-family: var(--font-mono); color: var(--success);">// DECODER</h3>
+                    <div class="form-group">
+                        <label class="stat-label">Decryption Key</label>
+                        <input type="password" id="dec-pass" class="form-input" placeholder="Passphrase">
+                    </div>
+                    <button class="btn-primary" onclick="processDecode()">
+                        <i class="fas fa-crosshairs"></i> EXECUTE EXTRACT
+                    </button>
+                    <div class="glass-panel" style="padding: 15px; margin-top: 20px; min-height: 120px;">
+                        <label class="stat-label">Decrypted Output:</label>
+                        <p id="dec-output"
+                            style="color: var(--text-muted); font-family: var(--font-mono); margin-top: 10px; word-break: break-all;">
+                            [WAITING FOR INPUT]</p>
+                    </div>
+                </div>
+                <div class="main-viewport">
+                    <div id="drop-dec" class="drop-area">
+                        <i class="fas fa-eye" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                        <p>DROP STEGO-IMAGE</p>
+                        <span class="stat-label">PNG Required</span>
+                        <input type="file" id="file-dec" hidden accept="image/*">
+                    </div>
+                    <div id="preview-dec-box" class="preview-container">
+                        <img id="preview-dec-img" src="">
+                        <div class="analysis-panel">
+                            <span class="stat-label">Forensic Analysis</span>
+                            <div class="bars"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script type="module" src="static/js/script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SecureLSB | Auth</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="glass-panel auth-card">
+            <div class="brand-header">
+                <i class="fas fa-shield-alt"></i>
+                <h1>SECURE_LSB</h1>
+                <p>Authorized Personnel Only</p>
+            </div>
+
+            <div id="flash-container"></div>
+
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" name="username" class="form-input" placeholder="Identity (Email)" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-key input-icon"></i>
+                    <input type="password" name="password" class="form-input" placeholder="Passphrase" required>
+                </div>
+                <button type="submit" class="btn-primary">AUTHENTICATE</button>
+            </form>
+            <div class="auth-links">
+                <a href="forgot_password.html">Lost Credentials?</a> | <a href="register.html">Initialize Identity</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script type="module" src="static/js/script.js"></script>
+</body>
+
+</html>

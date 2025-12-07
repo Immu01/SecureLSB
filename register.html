@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SecureLSB | Register</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="glass-panel auth-card">
+            <div class="brand-header">
+                <i class="fas fa-user-plus"></i>
+                <h1>NEW_IDENTITY</h1>
+                <p>Create Secure Profile</p>
+            </div>
+
+            <div id="flash-container"></div>
+
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" name="username" class="form-input" placeholder="New Username" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" name="email" class="form-input" placeholder="Secure Email" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" name="password" class="form-input" placeholder="Set Passphrase" required>
+                </div>
+                <button type="submit" class="btn-primary">INITIALIZE</button>
+            </form>
+            <div class="auth-links">
+                <a href="index.html">Return to Auth</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script type="module" src="static/js/script.js"></script>
+</body>
+
+</html>
