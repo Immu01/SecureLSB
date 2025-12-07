@@ -82,22 +82,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- WINDOW FUNCTIONS ---
 
+// *** MODIFIED LOGIN FUNCTION ***
 window.handleLogin = async (e) => {
     e.preventDefault();
     const email = e.target.username.value;
     const password = e.target.password.value;
 
     try {
-        // THIS LINE CHECKS THE PASSWORD WITH FIREBASE
+        // Attempt to sign in
         await signInWithEmailAndPassword(auth, email, password);
         window.location.href = 'dashboard.html';
     } catch (error) {
-        let msg = error.code;
-        if (msg === 'auth/invalid-credential') msg = 'Invalid Email or Password.';
-        if (msg === 'auth/invalid-email') msg = 'Invalid Email Format.';
-        if (msg === 'auth/user-not-found') msg = 'User not found.';
-        if (msg === 'auth/wrong-password') msg = 'Incorrect Password.';
-        if (msg === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
+        console.error("Login Error:", error.code); // Log error for debugging
+
+        let msg = 'Login failed.';
+
+        // Handle specific Firebase Error Codes
+        // 'auth/invalid-credential' is the common error for wrong password/email in newer Firebase versions
+        if (error.code === 'auth/invalid-credential' ||
+            error.code === 'auth/user-not-found' ||
+            error.code === 'auth/wrong-password') {
+            msg = 'Incorrect Email or Password.';
+        }
+        else if (error.code === 'auth/invalid-email') {
+            msg = 'Invalid Email Format.';
+        }
+        else if (error.code === 'auth/too-many-requests') {
+            msg = 'Too many attempts. Try again later.';
+        } else {
+            // Fallback for other errors
+            msg = error.code;
+        }
+
         showFlash(msg, 'danger');
     }
 };
