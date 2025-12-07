@@ -6,7 +6,7 @@ import {
     updateProfile,
     signOut,
     sendPasswordResetEmail
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
 // --- UTILITIES ---
 
@@ -40,7 +40,7 @@ const CryptoUtils = {
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. REAL AUTH STATE OBSERVER (Replaces LocalStorage check)
+    // 1. REAL AUTH STATE OBSERVER
     if (window.location.pathname.includes('dashboard.html') || window.location.pathname.includes('profile.html')) {
 
         onAuthStateChanged(auth, (user) => {
@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // User is logged in. Update UI.
                 const userDisplay = document.querySelector('.user-badge');
                 if (userDisplay) {
-                    // Use the real Display Name from Firebase
                     const displayName = user.displayName || user.email.split('@')[0];
                     userDisplay.innerHTML = `
                         <i class="fas fa-user-circle"></i> ${displayName}
@@ -63,9 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>`;
                 }
 
-                // Update Profile Page Info
                 const profileName = document.getElementById('profile-username');
-                const profileEmail = document.querySelector('.stat-label'); // Reusing this class for email display if needed
                 if (profileName) {
                     profileName.innerText = user.displayName || "Agent";
                 }
@@ -78,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDragDrop('drop-enc', 'file-enc', 'preview-enc-box', 'preview-enc-img');
         setupDragDrop('drop-dec', 'file-dec', 'preview-dec-box', 'preview-dec-img');
 
-        // CHECK PREVIOUS VIEW STATE
         const lastView = localStorage.getItem('secure_last_view') || 'overview';
         window.switchView(lastView);
     }
@@ -88,17 +84,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.handleLogin = async (e) => {
     e.preventDefault();
-    const email = e.target.username.value; // Variable name is 'username' in HTML, but we need Email
+    const email = e.target.username.value;
     const password = e.target.password.value;
 
     try {
+        // THIS LINE CHECKS THE PASSWORD WITH FIREBASE
         await signInWithEmailAndPassword(auth, email, password);
-        // Success! onAuthStateChanged will handle the redirect if we were on a protected page, 
-        // but since we are on index, we force it:
         window.location.href = 'dashboard.html';
     } catch (error) {
         let msg = error.code;
         if (msg === 'auth/invalid-credential') msg = 'Invalid Email or Password.';
+        if (msg === 'auth/invalid-email') msg = 'Invalid Email Format.';
+        if (msg === 'auth/user-not-found') msg = 'User not found.';
+        if (msg === 'auth/wrong-password') msg = 'Incorrect Password.';
         if (msg === 'auth/too-many-requests') msg = 'Too many attempts. Try again later.';
         showFlash(msg, 'danger');
     }
@@ -112,7 +110,6 @@ window.handleRegister = async (e) => {
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Save the Username (Display Name) to Firebase Profile
         await updateProfile(userCredential.user, {
             displayName: username
         });
@@ -147,11 +144,8 @@ window.handleLogout = async () => {
     }
 };
 
-// NEW: Handle Profile Update (Password)
 window.handleProfileUpdate = (e) => {
     e.preventDefault();
-    // Real password update requires re-authentication for security.
-    // For this step, we will just show a message that this feature is locked for V1.0 security.
     showFlash('Security Protocol: Password changes require Re-Authentication (Feature Locked in V1.0)', 'text-muted');
 };
 
