@@ -10,6 +10,9 @@ import {
 
 // --- UTILITIES ---
 
+// Store original filename for download
+window.currentUploadName = "secure_image";
+
 function showFlash(message, type = 'danger') {
     const container = document.getElementById('flash-container');
     if (container) {
@@ -40,15 +43,12 @@ const CryptoUtils = {
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
 
-    // 1. REAL AUTH STATE OBSERVER
     if (window.location.pathname.includes('dashboard.html') || window.location.pathname.includes('profile.html')) {
 
         onAuthStateChanged(auth, (user) => {
             if (!user) {
-                // No user logged in? Kick them out.
                 window.location.href = 'index.html';
             } else {
-                // User is logged in. Update UI.
                 const userDisplay = document.querySelector('.user-badge');
                 if (userDisplay) {
                     const displayName = user.displayName || user.email.split('@')[0];
@@ -61,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             </a>
                         </div>`;
                 }
-
                 const profileName = document.getElementById('profile-username');
                 if (profileName) {
                     profileName.innerText = user.displayName || "Agent";
@@ -70,7 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Initialize Visuals (Drag & Drop)
     if (document.getElementById('view-overview')) {
         setupDragDrop('drop-enc', 'file-enc', 'preview-enc-box', 'preview-enc-img');
         setupDragDrop('drop-dec', 'file-dec', 'preview-dec-box', 'preview-dec-img');
@@ -88,29 +86,20 @@ window.handleLogin = async (e) => {
     const password = e.target.password.value;
 
     try {
-        // Attempt to sign in
         await signInWithEmailAndPassword(auth, email, password);
         window.location.href = 'dashboard.html';
     } catch (error) {
         console.error("Login Error:", error.code);
-
         let msg = 'Login failed.';
-
-        // Handle specific Firebase Error Codes
-        if (error.code === 'auth/invalid-credential' ||
-            error.code === 'auth/user-not-found' ||
-            error.code === 'auth/wrong-password') {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
             msg = 'Incorrect Email or Password.';
-        }
-        else if (error.code === 'auth/invalid-email') {
+        } else if (error.code === 'auth/invalid-email') {
             msg = 'Invalid Email Format.';
-        }
-        else if (error.code === 'auth/too-many-requests') {
+        } else if (error.code === 'auth/too-many-requests') {
             msg = 'Too many attempts. Try again later.';
         } else {
             msg = error.code;
         }
-
         showFlash(msg, 'danger');
     }
 };
@@ -123,10 +112,7 @@ window.handleRegister = async (e) => {
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, {
-            displayName: username
-        });
-
+        await updateProfile(userCredential.user, { displayName: username });
         showFlash('Identity created successfully. Redirecting...', 'success');
         setTimeout(() => window.location.href = 'dashboard.html', 1500);
     } catch (error) {
@@ -195,13 +181,19 @@ window.clearImage = (type) => {
     if (type === 'dec') {
         const panel = document.querySelector('.analysis-panel');
         if (panel) panel.style.display = 'none';
+
+        // Reset output on clear
+        const output = document.getElementById('dec-output');
+        if (output) {
+            output.innerText = "[WAITING FOR INPUT]";
+            output.style.color = "var(--text-muted)";
+        }
     }
 
     if (type === 'enc') {
         const res = document.getElementById('enc-result');
         if (res) res.style.display = 'none';
 
-        // Remove warning if it exists when clearing
         const warning = document.getElementById('compression-warning');
         if (warning) warning.remove();
     }
@@ -219,7 +211,12 @@ function setupDragDrop(areaId, inputId, previewId, imgId) {
     area.addEventListener('click', () => input.click());
 
     input.addEventListener('change', (e) => {
-        handleFile(e.target.files[0], area, box, img, areaId);
+        const f = e.target.files[0];
+        if (f) {
+            // Save filename if we are encoding
+            if (areaId === 'drop-enc') window.currentUploadName = f.name;
+            handleFile(f, area, box, img, areaId);
+        }
     });
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -244,6 +241,8 @@ function setupDragDrop(areaId, inputId, previewId, imgId) {
         const files = dt.files;
         if (files.length > 0) {
             input.files = files;
+            // Save filename if we are encoding
+            if (areaId === 'drop-enc') window.currentUploadName = files[0].name;
             handleFile(files[0], area, box, img, areaId);
         }
     });
@@ -258,10 +257,12 @@ function handleFile(file, area, box, img, areaId) {
             box.style.display = 'flex';
             img.onload = () => {
                 if (areaId === 'drop-dec') {
+                    // *** 2. AUTO-SCAN FOR HINT ON UPLOAD ***
+                    attemptHintScan(img);
+
                     const panel = document.querySelector('.analysis-panel');
                     if (panel) {
                         panel.style.display = 'block';
-                        // Create fake analysis bars
                         const bars = panel.querySelector('.bars');
                         if (bars) {
                             let html = '';
@@ -276,7 +277,7 @@ function handleFile(file, area, box, img, areaId) {
     }
 }
 
-// --- STEGANOGRAPHY LOGIC ---
+// --- STEGANOGRAPHY CORE ---
 function textToBin(text) {
     let output = "";
     for (let i = 0; i < text.length; i++) {
@@ -293,9 +294,55 @@ function binToText(bin) {
     return output;
 }
 
+// *** NEW: Helper to scan only the hint portion ***
+function attemptHintScan(img) {
+    try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let binaryData = "";
+
+        // Read just the first 16000 bits (enough to find a hint)
+        // Optimization: don't read the whole image just for the hint
+        const limit = Math.min(data.length, 16000);
+
+        for (let i = 0; i < limit; i += 4) {
+            binaryData += (data[i] & 1).toString();
+            binaryData += (data[i + 1] & 1).toString();
+            binaryData += (data[i + 2] & 1).toString();
+        }
+
+        const rawText = binToText(binaryData);
+
+        // Check for HINT pattern
+        if (rawText.includes("HINT:{") && rawText.includes("}|SPLIT|")) {
+            const start = rawText.indexOf("HINT:{") + 6;
+            const end = rawText.indexOf("}|SPLIT|");
+            const hintMsg = rawText.substring(start, end);
+
+            // Display Hint Immediately
+            const output = document.getElementById('dec-output');
+            output.innerHTML = `
+                <div style="border: 1px solid var(--primary); padding: 10px; border-radius: 6px; background: rgba(59, 130, 246, 0.1);">
+                    <strong style="color: var(--primary)">DETECTED CLUE:</strong><br>
+                    <span style="font-size: 1.1rem; color: white;">"${hintMsg}"</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.8rem;">Enter the answer above to unlock.</div>
+            `;
+        }
+    } catch (e) {
+        console.log("Hint scan error", e);
+    }
+}
+
 window.processEncode = async () => {
     const msg = document.getElementById('enc-msg').value;
     const pass = document.getElementById('enc-pass').value;
+    const hint = document.getElementById('enc-hint').value; // *** 1. GET HINT ***
     const img = document.getElementById('preview-enc-img');
     const btn = document.querySelector('#view-encode .btn-primary');
 
@@ -311,7 +358,16 @@ window.processEncode = async () => {
     setTimeout(() => {
         try {
             const encrypted = CryptoUtils.encrypt(msg, pass);
-            const binaryData = textToBin(encrypted + "|END|");
+
+            // Build Payload: Include Hint if present
+            let fullPayload = "";
+            if (hint && hint.trim() !== "") {
+                fullPayload = `HINT:{${hint}}|SPLIT|${encrypted}|END|`;
+            } else {
+                fullPayload = `${encrypted}|END|`;
+            }
+
+            const binaryData = textToBin(fullPayload);
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -345,10 +401,18 @@ window.processEncode = async () => {
 
             resContainer.style.display = 'block';
             dlBtn.href = resultUrl;
-            dlBtn.download = 'secure_encoded.png';
+
+            // *** 3. FILENAME PRESERVATION LOGIC ***
+            let originalName = window.currentUploadName || "image.png";
+            // Strip existing extension
+            const dotIndex = originalName.lastIndexOf('.');
+            if (dotIndex !== -1) originalName = originalName.substring(0, dotIndex);
+
+            // Force PNG extension for stego stability
+            dlBtn.download = `${originalName}_secure.png`;
+
             dlBtn.innerHTML = '<i class="fas fa-check"></i> DOWNLOAD RESULT';
 
-            // *** WARNING ADDED HERE ***
             if (!document.getElementById('compression-warning')) {
                 const warning = document.createElement('div');
                 warning.id = 'compression-warning';
@@ -361,10 +425,8 @@ window.processEncode = async () => {
                 warning.style.color = '#ff8888';
                 warning.innerHTML = `
                     <i class="fas fa-exclamation-triangle"></i> <strong>CRITICAL TRANSFER WARNING</strong><br>
-                    Do not send this image via WhatsApp, Messenger, or Social Media as a "Photo".<br>
-                    <br>
-                    Compression will destroy the hidden data.<br>
-                    <strong>ALWAYS send as a "FILE" or "DOCUMENT".</strong>
+                    Send as "FILE" or "DOCUMENT" only.<br>
+                    Compression will destroy the data.
                 `;
                 resContainer.appendChild(warning);
             }
@@ -410,12 +472,19 @@ window.processDecode = () => {
             }
 
             const rawText = binToText(binaryData);
+
+            // Clean up HINT structure if present so we get just the encrypted text
+            let encryptedPart = rawText;
+            if (rawText.includes("}|SPLIT|")) {
+                encryptedPart = rawText.split("}|SPLIT|")[1];
+            }
+
             const terminator = "|END|";
-            const stopIndex = rawText.indexOf(terminator);
+            const stopIndex = encryptedPart.indexOf(terminator);
 
             if (stopIndex !== -1) {
-                const encrypted = rawText.substring(0, stopIndex);
-                const decrypted = CryptoUtils.decrypt(encrypted, pass);
+                const finalCipher = encryptedPart.substring(0, stopIndex);
+                const decrypted = CryptoUtils.decrypt(finalCipher, pass);
                 if (decrypted) {
                     output.innerText = decrypted;
                     output.style.color = 'var(--success)';
