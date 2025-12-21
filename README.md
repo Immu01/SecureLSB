@@ -2,11 +2,6 @@
 
 > **A professional web-based utility for secure communication, combining AES-256 encryption with LSB Image Steganography.**
 
-![Project Status](https://img.shields.io/badge/Status-Active-success)
-![Security](https://img.shields.io/badge/Security-AES--256-blue)
-![Platform](https://img.shields.io/badge/Platform-Web-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
-
 ## 📖 Overview
 
 **SecureLSB** is a zero-knowledge security tool that allows users to hide secret messages inside standard image files (PNG). Unlike basic tools, SecureLSB employs a **Dual-Layer Security Protocol**:
@@ -14,9 +9,10 @@
 2.  **Steganography:** The encrypted data is then injected into the **Least Significant Bits (LSB)** of the image pixels.
 
 The result is a standard-looking image that contains hidden, password-protected data.
+---
+## Website Link
 
 ---
-
 ## ✨ Key Features
 
 ### 🔐 Security & Privacy
@@ -86,10 +82,3 @@ Contributions are welcome! Please fork the repository and submit a pull request 
 3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
-*Built with ❤️ for Privacy & Security.*
