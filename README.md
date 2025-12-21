@@ -10,9 +10,9 @@
 
 The result is a standard-looking image that contains hidden, password-protected data.
 ---
-## Website Link
-[SecureLSB Website](https://immu01.github.io/SecureLSB/)
----
+
+## Website Link - [SecureLSB Website](https://immu01.github.io/SecureLSB/)
+
 ## ✨ Key Features
 
 ### 🔐 Security & Privacy
